@@ -124,6 +124,135 @@ static char *field_for_frame(struct id3v2_tag *tag, const unsigned char *id,
     return NULL;
 }
 
+/* Appends one code point to 'destination' as UTF-8. Returns 0 when there was
+ * no room, so the caller stops rather than dropping characters silently in the
+ * middle of a string.
+ *
+ * Control characters are discarded rather than encoded. A title has no use for
+ * them, a tab or newline would break a tab separated line of output, and an
+ * escape character would let a crafted tag write terminal escape sequences to
+ * whoever runs this. */
+static int append_utf8(char *destination, size_t destination_size,
+                       size_t *position, uint32_t code_point)
+{
+    size_t needed;
+    size_t at = *position;
+
+    if (code_point < 0x20 || code_point == 0x7F)
+    {
+        return 1;
+    }
+
+    if (code_point < 0x80)
+    {
+        needed = 1;
+    }
+    else if (code_point < 0x800)
+    {
+        needed = 2;
+    }
+    else if (code_point < 0x10000)
+    {
+        needed = 3;
+    }
+    else
+    {
+        needed = 4;
+    }
+
+    /* One byte beyond 'needed' has to stay free for the terminator. */
+    if (at + needed >= destination_size)
+    {
+        return 0;
+    }
+
+    switch (needed)
+    {
+    case 1:
+        destination[at++] = (char)code_point;
+        break;
+    case 2:
+        destination[at++] = (char)(0xC0 | (code_point >> 6));
+        destination[at++] = (char)(0x80 | (code_point & 0x3F));
+        break;
+    case 3:
+        destination[at++] = (char)(0xE0 | (code_point >> 12));
+        destination[at++] = (char)(0x80 | ((code_point >> 6) & 0x3F));
+        destination[at++] = (char)(0x80 | (code_point & 0x3F));
+        break;
+    default:
+        destination[at++] = (char)(0xF0 | (code_point >> 18));
+        destination[at++] = (char)(0x80 | ((code_point >> 12) & 0x3F));
+        destination[at++] = (char)(0x80 | ((code_point >> 6) & 0x3F));
+        destination[at++] = (char)(0x80 | (code_point & 0x3F));
+        break;
+    }
+
+    *position = at;
+
+    return 1;
+}
+
+/* Decodes UTF-16 into 'destination' as UTF-8. This is the encoding any tag
+ * has to use for a script Latin-1 cannot spell -- Cyrillic, Greek, Japanese --
+ * which in a v2.3 tag means UTF-16 or nothing, since v2.3 predates UTF-8. */
+static void store_utf16(char *destination, size_t destination_size,
+                        size_t *position, const unsigned char *data,
+                        size_t length, int big_endian)
+{
+    size_t at;
+
+    for (at = 0; at + 1 < length; at += 2)
+    {
+        uint32_t unit = big_endian ? ((uint32_t)data[at] << 8) | data[at + 1]
+                                   : ((uint32_t)data[at + 1] << 8) | data[at];
+        uint32_t code_point;
+
+        /* The terminator is a null code unit, two bytes, not one. */
+        if (unit == 0)
+        {
+            break;
+        }
+
+        if (unit >= 0xD800 && unit <= 0xDBFF)
+        {
+            /* A high surrogate: the code point is above the range a single
+             * 16-bit unit can hold and is spelled with a second unit. */
+            uint32_t low;
+
+            if (at + 3 >= length)
+            {
+                break;
+            }
+
+            low = big_endian ? ((uint32_t)data[at + 2] << 8) | data[at + 3]
+                             : ((uint32_t)data[at + 3] << 8) | data[at + 2];
+
+            if (low < 0xDC00 || low > 0xDFFF)
+            {
+                break;
+            }
+
+            code_point = 0x10000 + ((unit - 0xD800) << 10) + (low - 0xDC00);
+            at += 2;
+        }
+        else if (unit >= 0xDC00 && unit <= 0xDFFF)
+        {
+            /* A low surrogate with no high one before it. */
+            break;
+        }
+        else
+        {
+            code_point = unit;
+        }
+
+        if (!append_utf8(destination, destination_size, position, code_point))
+        {
+            break;
+        }
+    }
+}
+
 /* Copies one text frame's data into 'destination', converting to UTF-8 and
  * terminating it. 'data' points at the frame's data including its leading
  * encoding byte, and is not null-terminated, so nothing here may use the
@@ -133,7 +262,14 @@ static void store_text(char *destination, size_t destination_size,
 {
     unsigned char encoding;
     size_t read_index;
-    size_t write_index = 0;
+    size_t position = 0;
+
+    if (destination_size < 1)
+    {
+        return;
+    }
+
+    destination[0] = '\0';
 
     if (length < 1)
     {
@@ -146,10 +282,27 @@ static void store_text(char *destination, size_t destination_size,
 
     if (encoding == ID3V2_ENCODING_LATIN1)
     {
-        /* Latin-1 maps each byte to the code point of the same value, so the
-         * conversion to UTF-8 is one byte below 0x80 and two above it. Without
-         * this an accented character would reach the terminal as a byte that
-         * is not valid UTF-8 and show up as a replacement mark. */
+        /* Latin-1 maps each byte to the code point of the same value, so every
+         * byte is already the code point it needs to be encoded from. */
+        for (read_index = 0; read_index < length; read_index++)
+        {
+            if (data[read_index] == 0)
+            {
+                break;
+            }
+
+            if (!append_utf8(destination, destination_size, &position,
+                             data[read_index]))
+            {
+                break;
+            }
+        }
+    }
+    else if (encoding == ID3V2_ENCODING_UTF8)
+    {
+        /* Already the target encoding, so the bytes are copied rather than
+         * decoded. Bytes below 0x80 can be tested directly for control
+         * characters because a UTF-8 continuation byte is never below 0x80. */
         for (read_index = 0; read_index < length; read_index++)
         {
             unsigned char byte = data[read_index];
@@ -159,53 +312,52 @@ static void store_text(char *destination, size_t destination_size,
                 break;
             }
 
-            if (byte < 0x80)
+            if (byte < 0x20 || byte == 0x7F)
             {
-                if (write_index + 1 >= destination_size)
-                {
-                    break;
-                }
-
-                destination[write_index++] = (char)byte;
+                continue;
             }
-            else
+
+            if (position + 1 >= destination_size)
             {
-                if (write_index + 2 >= destination_size)
-                {
-                    break;
-                }
-
-                destination[write_index++] = (char)(0xC0 | (byte >> 6));
-                destination[write_index++] = (char)(0x80 | (byte & 0x3F));
+                break;
             }
+
+            destination[position++] = (char)byte;
         }
     }
-    else if (encoding == ID3V2_ENCODING_UTF8)
+    else if (encoding == ID3V2_ENCODING_UTF16_BOM)
     {
-        for (read_index = 0; read_index < length; read_index++)
+        /* A byte order mark should lead the text. Where one is missing the
+         * spec's default applies, which is the same big-endian order that
+         * encoding 0x02 states outright. */
+        int big_endian = 1;
+
+        if (length >= 2 && data[0] == 0xFF && data[1] == 0xFE)
         {
-            if (data[read_index] == 0)
-            {
-                break;
-            }
-
-            if (write_index + 1 >= destination_size)
-            {
-                break;
-            }
-
-            destination[write_index++] = (char)data[read_index];
+            big_endian = 0;
+            data += 2;
+            length -= 2;
         }
+        else if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF)
+        {
+            data += 2;
+            length -= 2;
+        }
+
+        store_utf16(destination, destination_size, &position, data, length,
+                    big_endian);
+    }
+    else if (encoding == ID3V2_ENCODING_UTF16_BE)
+    {
+        store_utf16(destination, destination_size, &position, data, length, 1);
     }
     else
     {
-        /* UTF-16, in either of its two spellings. Storing the bytes raw would
-         * produce mojibake, so the field is left empty and the caller reports
-         * it as missing, which is at least true. */
+        /* An encoding byte outside the four the format defines. */
         return;
     }
 
-    destination[write_index] = '\0';
+    destination[position] = '\0';
 }
 
 /* Skips the optional extended header, which sits between the tag header and
@@ -298,6 +450,8 @@ int id3v2_read(const char *path, struct id3v2_tag *out)
 
         return ID3V2_EVERSION;
     }
+
+    out->version = (int)major;
 
     flags = header[5];
 

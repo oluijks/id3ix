@@ -24,6 +24,10 @@ enum id3v2_result
  * tag.title[0] rather than tracking which frames were seen. */
 struct id3v2_tag
 {
+    /* Major version of the tag that was read: 3 for v2.3, 4 for v2.4, and 0
+     * when no tag was read at all. The minor part is always 0 in practice. */
+    int version;
+
     char title[ID3V2_FIELD_MAX];  /* TIT2 */
     char artist[ID3V2_FIELD_MAX]; /* TPE1 */
     char album[ID3V2_FIELD_MAX];  /* TALB */

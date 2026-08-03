@@ -133,7 +133,11 @@ fi
 assert_status 1 'scan without a path exits 1' "$BIN" scan
 assert_stderr_contains 'requires a directory' 'scan without a path explains why' "$BIN" scan
 assert_status 0 'scan with a path exits 0' "$BIN" scan "$script_dir"
-assert_stdout_contains 'Scanning' 'scan with a path reports progress' "$BIN" scan "$script_dir"
+
+# stdout carries one line per file and nothing else. This directory holds the
+# test script and no music, so a successful scan of it says nothing at all --
+# any progress message or banner would show up here.
+assert_stdout_empty 'scan of a directory with no music says nothing' "$BIN" scan "$script_dir"
 
 # Unknown commands are an error, and the message names the offending command.
 assert_status 1 'unknown command exits 1' "$BIN" bogus

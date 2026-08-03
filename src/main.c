@@ -46,13 +46,10 @@ int main(int argc, char **argv)
             return EXIT_FAILURE;
         }
 
-        printf("Scanning...\n");
-
-        /* stdout is block-buffered when it is not a terminal, while stderr is
-         * not buffered at all. Without this flush, any error the walk writes to
-         * stderr appears ahead of this line whenever output is piped. */
-        fflush(stdout);
-
+        /* Nothing is printed here on purpose. stdout carries one line per
+         * file and nothing else, so that it can be piped straight into awk or
+         * sort; progress chatter would be another line for every caller to
+         * filter back out. */
         if (scan_directory(argv[2]) != 0)
         {
             return EXIT_FAILURE;

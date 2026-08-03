@@ -28,22 +28,45 @@ static int has_mp3_extension(const char *name)
            (extension[2] == 'p' || extension[2] == 'P') && extension[3] == '3';
 }
 
+/* The second column of every line: either the tag version, or why there are no
+ * fields to show. Short words rather than sentences, because this is something
+ * to match on: `awk -F'\t' '$2=="none"'`. */
+static const char *status_word(int result, const struct id3v2_tag *tag)
+{
+    switch (result)
+    {
+    case ID3V2_OK:
+        return tag->version == 4 ? "2.4" : "2.3";
+    case ID3V2_ENOTAG:
+        return "none";
+    case ID3V2_ENOFILE:
+        return "unreadable";
+    case ID3V2_EVERSION:
+        return "oldversion";
+    case ID3V2_EMALFORMED:
+        return "malformed";
+    case ID3V2_EUNSUPPORTED:
+        return "unsupported";
+    default:
+        return "unknown";
+    }
+}
+
+/* One line per file, tab separated, so that a collection can be counted,
+ * filtered and sorted with the tools that already exist rather than with
+ * options invented here. A file that could not be read still gets a line: the
+ * ones with problems are the point, and a report that quietly omitted them
+ * would be worse than useless.
+ *
+ * Fields are printed raw because they cannot contain a tab or a newline --
+ * store_text discards control characters as it decodes. */
 static void report_file(const char *path)
 {
     struct id3v2_tag tag;
     int result = id3v2_read(path, &tag);
 
-    if (result != ID3V2_OK)
-    {
-        printf("%s: %s\n", path, id3v2_strerror(result));
-
-        return;
-    }
-
-    printf("%s\n", path);
-    printf("  title:  %s\n", tag.title[0] != '\0' ? tag.title : "-");
-    printf("  artist: %s\n", tag.artist[0] != '\0' ? tag.artist : "-");
-    printf("  album:  %s\n", tag.album[0] != '\0' ? tag.album : "-");
+    printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", path, status_word(result, &tag),
+           tag.title, tag.artist, tag.album, tag.track, tag.year);
 }
 
 int scan_directory(const char *path)

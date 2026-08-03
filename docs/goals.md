@@ -34,8 +34,16 @@ Read the tags and print one line per file, tab separated, empty field for
 anything missing:
 
 ```
-path <TAB> version <TAB> title <TAB> artist <TAB> album
+path <TAB> status <TAB> title <TAB> artist <TAB> album <TAB> track <TAB> year
 ```
+
+The status column is the tag version — `2.3` or `2.4` — or, where there are no
+fields to show, the reason: `none`, `malformed`, `oldversion`, `unsupported`,
+`unreadable`. Every file gets exactly one line including the broken ones, since
+those are the point of the exercise and a report that quietly dropped them
+would be worse than no report.
+
+Short words rather than sentences, because this is something to match on.
 
 One line per file matters more than it looks. It means the output can be piped
 into the tools that already exist, so questions nobody built a feature for can
@@ -43,10 +51,18 @@ still be answered:
 
 ```sh
 id3ix scan ~/Music | awk -F'\t' '$5==""' | wc -l     # files with no album
-id3ix scan ~/Music | cut -f2 | sort | uniq -c        # which tag versions
+id3ix scan ~/Music | cut -f2 | sort | uniq -c        # what the collection is
+id3ix scan ~/Music | awk -F'\t' '$2=="none"'         # files with no tag
 ```
 
 The tool turns opaque binary into lines of text. Established tools do the rest.
+
+Nothing else goes to stdout — no progress line, no banner — or every caller
+would have to filter it back out. Diagnostics go to stderr.
+
+Fields cannot contain a tab or a newline: control characters are discarded as
+the text is decoded, which also stops a crafted tag from writing terminal
+escape sequences to whoever runs this.
 
 What `scan` accepts, and the conventions it borrows from other Unix tools, is
 described in [cli.md](cli.md).
@@ -112,6 +128,13 @@ hand, or by an existing tool now that there is something to aim it at.
 - **Being a general tag editor.** Plenty exist. The gap is diagnosis.
 - **ID3v2.2 and ID3v1**, for now. Both are real and both turn up; neither is
   worth handling before v2.3 and v2.4 work properly.
+- **Unsynchronised tags**, which are reported as unsupported rather than
+  misread.
+- **Cyrillic written as Windows-1251 but labelled Latin-1.** Legacy Russian and
+  Ukrainian taggers did this routinely, and the tag gives no way to tell it
+  apart from real Latin-1 — both claim encoding 0x00. It needs a heuristic, and
+  a heuristic is worth writing against a real collection rather than in the
+  abstract. Properly encoded UTF-16 and UTF-8 Cyrillic both work today.
 
 ## Where it is now
 
