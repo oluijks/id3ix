@@ -27,7 +27,7 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
-    if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)
+    if (strcmp(argv[1], "-V") == 0 || strcmp(argv[1], "--version") == 0)
     {
         show_version();
 
@@ -64,7 +64,7 @@ static void show_usage(FILE *stream)
     fprintf(stream, "  id3ix scan <directory>\n\n");
     fprintf(stream, "Options:\n");
     fprintf(stream, "  -h, --help     Show this help message\n");
-    fprintf(stream, "  -v, --version  Show version information\n");
+    fprintf(stream, "  -V, --version  Show version information\n");
 }
 
 static void show_version(void)

@@ -19,7 +19,7 @@ id3ix scan <directory>
 Options:
 
 - `-h`, `--help` — show help
-- `-v`, `--version` — show version information
+- `-V`, `--version` — show version information
 
 Help and version output go to stdout and exit `0`; usage errors go to stderr
 and exit `1`.

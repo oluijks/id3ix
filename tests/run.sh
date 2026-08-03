@@ -115,9 +115,10 @@ assert_status 0 '-h exits 0' "$BIN" -h
 assert_stdout_contains 'Usage:' '--help writes usage to stdout' "$BIN" --help
 assert_stdout_contains '--version' '--help lists the version flag' "$BIN" --help
 
-# Version is explicitly requested output: stdout, exit 0.
+# Version is explicitly requested output: stdout, exit 0. The short flag is -V,
+# not -v, which stays free for a future --verbose on scan.
 assert_status 0 '--version exits 0' "$BIN" --version
-assert_status 0 '-v exits 0' "$BIN" -v
+assert_status 0 '-V exits 0' "$BIN" -V
 assert_stdout_contains 'id3ix' '--version writes the name to stdout' "$BIN" --version
 
 # `make test` passes VERSION in from the Makefile, which is the single source of
