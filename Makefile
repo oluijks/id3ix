@@ -1,4 +1,11 @@
+# Default to clang, but respect a compiler the user actually chose, from either
+# the environment or the command line. A plain `CC = clang` would override an
+# environment CC, and `CC ?= clang` would never apply at all, since make
+# predefines CC and ?= only assigns when a variable is unset.
+ifeq ($(origin CC),default)
 CC = clang
+endif
+
 VERSION = 0.1.0
 CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -g -DID3IX_VERSION=\"$(VERSION)\"
 PREFIX ?= /usr/local
