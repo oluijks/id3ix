@@ -12,10 +12,11 @@
 enum id3v2_result
 {
     ID3V2_OK = 0,
-    ID3V2_ENOFILE = -1,   /* could not be opened or read */
-    ID3V2_ENOTAG = -2,    /* no ID3v2 tag present */
-    ID3V2_EVERSION = -3,  /* a tag version this code does not handle */
-    ID3V2_EMALFORMED = -4 /* the tag contradicts itself */
+    ID3V2_ENOFILE = -1,     /* could not be opened or read */
+    ID3V2_ENOTAG = -2,      /* no ID3v2 tag present */
+    ID3V2_EVERSION = -3,    /* a tag version this code does not handle */
+    ID3V2_EMALFORMED = -4,  /* the tag contradicts itself */
+    ID3V2_EUNSUPPORTED = -5 /* a tag feature this code does not handle */
 };
 
 /* Extracted fields. Any frame that was absent, unparseable, or in an encoding
@@ -23,6 +24,10 @@ enum id3v2_result
  * tag.title[0] rather than tracking which frames were seen. */
 struct id3v2_tag
 {
+    /* Major version of the tag that was read: 3 for v2.3, 4 for v2.4, and 0
+     * when no tag was read at all. The minor part is always 0 in practice. */
+    int version;
+
     char title[ID3V2_FIELD_MAX];  /* TIT2 */
     char artist[ID3V2_FIELD_MAX]; /* TPE1 */
     char album[ID3V2_FIELD_MAX];  /* TALB */
