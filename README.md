@@ -1,6 +1,8 @@
 # id3ix
 
-A command-line metadata utility.
+A command-line utility for finding out what is wrong with the ID3 tags in a
+music collection. See [docs/goals.md](docs/goals.md) for what it is aiming at
+and what it deliberately does not do.
 
 ## Building
 
@@ -8,7 +10,8 @@ A command-line metadata utility.
 make
 ```
 
-Requires a C17-compatible compiler (`clang` by default; override with `make CC=cc`).
+Requires a C17-compatible compiler. Uses the system compiler by default; choose
+another with `make CC=clang` or by setting `CC` in the environment.
 
 ## Usage
 
