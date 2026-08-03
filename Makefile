@@ -1,4 +1,6 @@
-CC = clang
+# CC is deliberately not set here. Make defaults it to cc, the system compiler,
+# and leaving it alone lets the environment or `make CC=...` choose one. CI
+# pins the compilers it tests explicitly.
 VERSION = 0.1.0
 CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -g -DID3IX_VERSION=\"$(VERSION)\"
 PREFIX ?= /usr/local
