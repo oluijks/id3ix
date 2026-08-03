@@ -12,10 +12,11 @@
 enum id3v2_result
 {
     ID3V2_OK = 0,
-    ID3V2_ENOFILE = -1,   /* could not be opened or read */
-    ID3V2_ENOTAG = -2,    /* no ID3v2 tag present */
-    ID3V2_EVERSION = -3,  /* a tag version this code does not handle */
-    ID3V2_EMALFORMED = -4 /* the tag contradicts itself */
+    ID3V2_ENOFILE = -1,     /* could not be opened or read */
+    ID3V2_ENOTAG = -2,      /* no ID3v2 tag present */
+    ID3V2_EVERSION = -3,    /* a tag version this code does not handle */
+    ID3V2_EMALFORMED = -4,  /* the tag contradicts itself */
+    ID3V2_EUNSUPPORTED = -5 /* a tag feature this code does not handle */
 };
 
 /* Extracted fields. Any frame that was absent, unparseable, or in an encoding
