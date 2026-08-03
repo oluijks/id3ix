@@ -13,4 +13,4 @@ format:
 	clang-format -i src/*.c src/*.h
 
 format-check:
-	clang-format --dry-run --Werror src/*.c src/*. hey
+	clang-format --dry-run --Werror src/*.c src/*.h
