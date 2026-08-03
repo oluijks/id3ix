@@ -83,6 +83,12 @@ same reason. Entries are therefore sorted before being processed.
 Paths given on the command line are processed in the order given, not sorted —
 if you asked for a specific order, that was the request.
 
+The walk descends where it finds a directory rather than saving subdirectories
+for the end, so a nested file appears at the position its directory sorts to.
+Given `alpha.mp3`, `bravo.mp3`, `inner/nested.mp3`, `mike.mp3` and `zulu.mp3`,
+`nested.mp3` comes out third. That keeps an album's files next to the directory
+they came from, which is what makes the output readable a screen at a time.
+
 ## Exit codes
 
 | code | meaning |

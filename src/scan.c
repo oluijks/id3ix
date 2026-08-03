@@ -4,12 +4,79 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
 /* Longest path this walker will build. Paths longer than this are reported and
  * skipped rather than silently truncated into the wrong file. */
 #define SCAN_PATH_MAX 4096
+
+/* A directory's entry names, collected so they can be sorted before any of
+ * them is looked at. readdir hands them back in whatever order the filesystem
+ * stores them, which is neither alphabetical nor stable between runs, and
+ * output that reorders itself cannot be diffed or compared against last
+ * week's. */
+struct entry_names
+{
+    char **items;
+    size_t count;
+    size_t capacity;
+};
+
+static void entry_names_free(struct entry_names *names)
+{
+    size_t index;
+
+    for (index = 0; index < names->count; index++)
+    {
+        free(names->items[index]);
+    }
+
+    free(names->items);
+
+    names->items = NULL;
+    names->count = 0;
+    names->capacity = 0;
+}
+
+static int entry_names_add(struct entry_names *names, const char *name)
+{
+    char *copy;
+
+    if (names->count == names->capacity)
+    {
+        size_t capacity = names->capacity == 0 ? 32 : names->capacity * 2;
+        char **grown = realloc(names->items, capacity * sizeof(*grown));
+
+        if (grown == NULL)
+        {
+            return -1;
+        }
+
+        names->items = grown;
+        names->capacity = capacity;
+    }
+
+    copy = malloc(strlen(name) + 1);
+    if (copy == NULL)
+    {
+        return -1;
+    }
+
+    memcpy(copy, name, strlen(name) + 1);
+    names->items[names->count++] = copy;
+
+    return 0;
+}
+
+static int compare_names(const void *left, const void *right)
+{
+    const char *const *left_name = left;
+    const char *const *right_name = right;
+
+    return strcmp(*left_name, *right_name);
+}
 
 static int has_mp3_extension(const char *name)
 {
@@ -69,10 +136,13 @@ static void report_file(const char *path)
            tag.title, tag.artist, tag.album, tag.track, tag.year);
 }
 
-int scan_directory(const char *path)
+static int scan_directory(const char *path)
 {
+    struct entry_names names = {NULL, 0, 0};
     const struct dirent *entry;
     DIR *dir = opendir(path);
+    size_t index;
+    int failed = 0;
 
     if (dir == NULL)
     {
@@ -83,43 +153,103 @@ int scan_directory(const char *path)
 
     while ((entry = readdir(dir)) != NULL)
     {
-        char child[SCAN_PATH_MAX];
-        struct stat info;
-        int written;
-
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
         {
             continue;
         }
 
-        written = snprintf(child, sizeof(child), "%s/%s", path, entry->d_name);
+        if (entry_names_add(&names, entry->d_name) != 0)
+        {
+            fprintf(stderr, "id3ix: out of memory reading '%s'\n", path);
+            failed = -1;
+
+            break;
+        }
+    }
+
+    /* Closed before recursing rather than after. Holding it open would cost a
+     * file descriptor for every level of depth, and a deep enough tree would
+     * run the process out of them. */
+    closedir(dir);
+
+    qsort(names.items, names.count, sizeof(*names.items), compare_names);
+
+    for (index = 0; index < names.count; index++)
+    {
+        const char *name = names.items[index];
+        char child[SCAN_PATH_MAX];
+        struct stat info;
+        int written;
+
+        written = snprintf(child, sizeof(child), "%s/%s", path, name);
         if (written < 0 || (size_t)written >= sizeof(child))
         {
             fprintf(stderr, "id3ix: path too long, skipping '%s/%s'\n", path,
-                    entry->d_name);
+                    name);
+            failed = -1;
 
             continue;
         }
 
         /* lstat rather than stat, so a symlink is described as a symlink
          * instead of as whatever it points at. Following them would let a link
-         * back up the tree loop this walk forever. */
+         * back up the tree loop this walk forever. A path named on the command
+         * line is treated differently: see scan_path. */
         if (lstat(child, &info) != 0)
         {
+            fprintf(stderr, "id3ix: cannot read '%s'\n", child);
+            failed = -1;
+
             continue;
         }
 
         if (S_ISDIR(info.st_mode))
         {
-            scan_directory(child);
+            if (scan_directory(child) != 0)
+            {
+                failed = -1;
+            }
         }
-        else if (S_ISREG(info.st_mode) && has_mp3_extension(entry->d_name))
+        else if (S_ISREG(info.st_mode) && has_mp3_extension(name))
         {
             report_file(child);
         }
     }
 
-    closedir(dir);
+    entry_names_free(&names);
 
-    return 0;
+    return failed;
+}
+
+int scan_path(const char *path)
+{
+    struct stat info;
+
+    /* stat, not lstat: a symlink named on the command line was named on
+     * purpose, so it is followed. Only the walk, which has to guess what is
+     * worth opening, refuses to follow one. */
+    if (stat(path, &info) != 0)
+    {
+        fprintf(stderr, "id3ix: cannot read '%s'\n", path);
+
+        return -1;
+    }
+
+    if (S_ISDIR(info.st_mode))
+    {
+        return scan_directory(path);
+    }
+
+    if (S_ISREG(info.st_mode))
+    {
+        /* No extension test. The caller named this file, so whatever it is
+         * called, they meant it. */
+        report_file(path);
+
+        return 0;
+    }
+
+    fprintf(stderr, "id3ix: not a file or directory: '%s'\n", path);
+
+    return -1;
 }

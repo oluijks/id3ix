@@ -6,10 +6,18 @@
  * tag parsers work on paths and bytes, which keeps them testable without
  * needing files on disk. */
 
-/* Recursively walks 'path', reading and printing the tag of every .mp3 file
- * found. Returns 0 on success, or -1 if 'path' itself could not be opened.
- * Directories encountered further down that cannot be opened are reported and
- * skipped rather than failing the whole walk. */
-int scan_directory(const char *path);
+/* Reports the tags of 'path'.
+ *
+ * A directory is walked recursively, considering only files whose name looks
+ * like an MP3. A file named directly is read whatever it is called: the walk
+ * has to guess what is worth opening, an explicit argument does not, and
+ * silently ignoring a file someone typed out would look like a broken tool.
+ *
+ * Returns 0, or -1 if anything could not be read. A failure part way through
+ * does not abandon the rest: it is reported on stderr, the walk carries on,
+ * and the caller turns the return value into an exit status at the end.
+ * Stopping at the first unreadable file in a collection of thousands would
+ * make the tool useless for the job it exists to do. */
+int scan_path(const char *path);
 
 #endif /* ID3IX_SCAN_H */
