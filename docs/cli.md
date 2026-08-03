@@ -120,6 +120,55 @@ file, tab separated, empty field for anything missing.
 - **Recursion depth limits or exclusion patterns.** `find` does this better.
   Pipe it in.
 
+## Considered and rejected: flags saying what a path is
+
+The idea was `-d` for directories and `-f` for files, so `scan` would be told
+what it was being handed rather than working it out.
+
+Rejected, because `lstat` already knows. The flag would ask the user to supply
+information the program looks up anyway, and to supply it *correctly*, which
+only creates new ways to be wrong:
+
+```sh
+id3ix scan -d track.mp3     # error? ignore the flag? guess?
+id3ix scan -f ~/Music       # same question, no good answer
+```
+
+Each of those becomes a case to define, document and test, and none of them
+exist while the type is simply looked up.
+
+It also breaks the two things that made a path list worth having. Mixed
+arguments stop working:
+
+```sh
+id3ix scan ~/Music/Beatles one-off.mp3 ~/Music/Bowie
+```
+
+And so does globbing, which was the original motivation:
+
+```sh
+id3ix scan *.mp3
+```
+
+The shell expands that before the program starts. You cannot know in advance
+whether the result is files, directories or both, so you cannot know which flag
+to pass — and in a music folder, `*` is usually both.
+
+No standard tool works this way, which is the strongest argument. `grep pattern
+file dir/`, `wc file dir/*`, `du file dir/`, `cp a b dir/` all take mixed lists
+and work it out. The flags those tools *do* have change behaviour — `-r` to
+recurse, `-L` to follow symlinks — rather than describe the arguments.
+
+The principle worth keeping: **a flag should change what the tool does, not
+describe what it was given.** Anything determinable by looking should be looked
+up, because that cannot be got wrong and needs no documentation.
+
+Flags that would earn their place here are the ones expressing a choice that
+cannot be inferred — `--summary` for counts instead of per-file lines,
+`--missing-artist` to list only problem files, `-L` to follow symlinks after
+all, or `--no-recurse` so a directory means the files directly in it. Note that
+even `--no-recurse` describes the action, not the argument.
+
 ## Undecided
 
 - **`--` to end option parsing**, for paths that begin with a dash. Standard,
