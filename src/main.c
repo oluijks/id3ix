@@ -15,11 +15,20 @@ int main(int argc, char **argv)
 
     if (strcmp(argv[1], "scan") == 0)
     {
+        if (argc < 3)
+        {
+            fprintf(stderr, "Usage: id3ix scan <path>\n");
+
+            return EXIT_FAILURE;
+        }
+
         printf("Scanning...\n");
     }
     else
     {
         fprintf(stderr, "Usage: id3ix scan <path>\n");
+
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
