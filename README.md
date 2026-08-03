@@ -2,7 +2,8 @@
 
 A command-line utility for finding out what is wrong with the ID3 tags in a
 music collection. See [docs/goals.md](docs/goals.md) for what it is aiming at
-and what it deliberately does not do.
+and what it deliberately does not do, and [docs/cli.md](docs/cli.md) for the
+command line interface.
 
 ## Building
 
