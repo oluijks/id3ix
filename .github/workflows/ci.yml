@@ -12,10 +12,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang clang-format cppcheck
+        run: sudo apt-get update && sudo apt-get install -y clang clang-format cppcheck shellcheck
 
       - name: Build
         run: make
+
+      - name: Test
+        run: make test
 
       - name: Format check
         run: make format-check
