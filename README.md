@@ -31,6 +31,14 @@ passed to the compiler as `-DID3IX_VERSION`. Edit it there and rebuild; `make
 test` checks the binary reports the version the Makefile declares.
 
 - `make test` — run the CLI smoke tests in `tests/run.sh`
+- `make debug` — build `id3ix-debug` with AddressSanitizer and
+  UndefinedBehaviorSanitizer
+- `make test-debug` — run the same test suite against the sanitized binary
+
+The sanitized build catches memory errors and undefined behaviour that a normal
+build compiles without complaint. Use it while working on anything that reads
+bytes out of a file. gcc ships the sanitizer runtimes with the compiler; with
+clang they live in a separate `libclang-rt-*-dev` package.
 - `make format` — format source with clang-format
 - `make format-check` — verify formatting without changing files (used in CI)
 - `make lint` — run cppcheck and shellcheck
