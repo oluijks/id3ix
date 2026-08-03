@@ -78,6 +78,21 @@ static int compare_names(const void *left, const void *right)
     return strcmp(*left_name, *right_name);
 }
 
+/* Length of 'path' with any trailing slashes left off, so that joining a name
+ * onto it can add exactly one. "samples/" and "samples///" both give 7, and "/"
+ * gives 0, which joins to "/name" rather than "//name". */
+static size_t length_without_trailing_slashes(const char *path)
+{
+    size_t length = strlen(path);
+
+    while (length > 0 && path[length - 1] == '/')
+    {
+        length--;
+    }
+
+    return length;
+}
+
 static int has_mp3_extension(const char *name)
 {
     size_t length = strlen(name);
@@ -237,6 +252,7 @@ static int scan_directory(const char *path, struct scan_options *options)
     struct entry_names names = {NULL, 0, 0};
     const struct dirent *entry;
     DIR *dir = opendir(path);
+    size_t stem = length_without_trailing_slashes(path);
     size_t index;
     int failed = 0;
 
@@ -277,11 +293,16 @@ static int scan_directory(const char *path, struct scan_options *options)
         struct stat info;
         int written;
 
-        written = snprintf(child, sizeof(child), "%s/%s", path, name);
+        /* A path typed with a trailing slash would otherwise produce
+         * "samples//track.mp3". Harmless to open, but it makes the same scan
+         * print different strings depending on how the argument was typed,
+         * which spoils diffing one run against another. */
+        written =
+            snprintf(child, sizeof(child), "%.*s/%s", (int)stem, path, name);
         if (written < 0 || (size_t)written >= sizeof(child))
         {
-            fprintf(stderr, "id3ix: path too long, skipping '%s/%s'\n", path,
-                    name);
+            fprintf(stderr, "id3ix: path too long, skipping '%.*s/%s'\n",
+                    (int)stem, path, name);
             failed = -1;
 
             continue;

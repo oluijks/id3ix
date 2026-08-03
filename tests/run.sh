@@ -193,6 +193,16 @@ assert_status 2 'one bad path among good ones still exits 2' \
 assert_stdout_contains '7' 'every line has seven tab separated fields' \
     sh -c "\"$BIN\" scan \"$work/tree\" | awk -F'\t' '{print NF}' | sort -u"
 
+# A trailing slash on the argument must not double up in the output. The path
+# opens either way, but "samples//track.mp3" and "samples/track.mp3" are
+# different strings, so one run could not be diffed against another that was
+# typed slightly differently.
+assert_stdout_empty 'a trailing slash does not double in the output' \
+    sh -c "\"$BIN\" scan \"$work/tree/\" | cut -f1 | grep '//'"
+assert_stdout_contains 'same' 'trailing slash gives the same output as none' \
+    sh -c "a=\$(\"$BIN\" scan \"$work/tree\"); b=\$(\"$BIN\" scan \"$work/tree/\");
+           [ \"\$a\" = \"\$b\" ] && echo same || echo differs"
+
 # --summary counts instead of listing. The tree holds five empty .mp3 files, so
 # every one of them is a file with no tag.
 assert_status 0 '--summary exits 0' "$BIN" scan --summary "$work/tree"
