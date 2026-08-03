@@ -55,3 +55,7 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Sample audio downloaded for trying the tool out. Not committed: the files are
+# large, the licences vary, and anything in git history stays there.
+samples/
