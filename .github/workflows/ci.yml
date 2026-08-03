@@ -23,6 +23,21 @@ jobs:
       - name: Build and test with ${{ matrix.cc }}
         run: make CC=${{ matrix.cc }} test
 
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # gcc ships its sanitizer runtimes with the compiler. clang keeps them in
+      # a separate, version-numbered package (libclang-rt-N-dev) that would need
+      # updating whenever the runner's clang moves, so gcc is the sturdier
+      # choice for this job.
+      - name: Install gcc
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Build and test with AddressSanitizer and UndefinedBehaviorSanitizer
+        run: make CC=gcc test-debug
+
   checks:
     runs-on: ubuntu-latest
     steps:

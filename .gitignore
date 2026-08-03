@@ -36,6 +36,7 @@
 *.x86_64
 *.hex
 id3ix
+id3ix-debug
 
 # Debug files
 *.dSYM/
