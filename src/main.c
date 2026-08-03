@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ID3IX_VERSION "0.1.0"
+/* Defined by the Makefile via -DID3IX_VERSION; the fallback only applies when
+ * building src/main.c directly without it. */
+#ifndef ID3IX_VERSION
+#define ID3IX_VERSION "unknown"
+#endif
 
 static void show_usage(FILE *stream);
 static void show_version(void);

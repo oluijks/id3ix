@@ -120,6 +120,14 @@ assert_status 0 '--version exits 0' "$BIN" --version
 assert_status 0 '-v exits 0' "$BIN" -v
 assert_stdout_contains 'id3ix' '--version writes the name to stdout' "$BIN" --version
 
+# `make test` passes VERSION in from the Makefile, which is the single source of
+# truth for it. Check the binary reports that exact version, so a build that
+# missed -DID3IX_VERSION and fell back to "unknown" fails here.
+if [ -n "${VERSION:-}" ]
+then
+    assert_stdout_contains "id3ix $VERSION" '--version matches the Makefile VERSION' "$BIN" --version
+fi
+
 # scan requires a directory argument.
 assert_status 1 'scan without a path exits 1' "$BIN" scan
 assert_stderr_contains 'requires a directory' 'scan without a path explains why' "$BIN" scan
