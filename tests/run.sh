@@ -193,6 +193,39 @@ assert_status 2 'one bad path among good ones still exits 2' \
 assert_stdout_contains '7' 'every line has seven tab separated fields' \
     sh -c "\"$BIN\" scan \"$work/tree\" | awk -F'\t' '{print NF}' | sort -u"
 
+# --summary counts instead of listing. The tree holds five empty .mp3 files, so
+# every one of them is a file with no tag.
+assert_status 0 '--summary exits 0' "$BIN" scan --summary "$work/tree"
+assert_stdout_contains '5 files' '--summary counts the files' \
+    "$BIN" scan --summary "$work/tree"
+assert_stdout_contains '0 with a tag' '--summary separates tagged from untagged' \
+    "$BIN" scan --summary "$work/tree"
+assert_stdout_empty '--summary prints no per-file lines' \
+    sh -c "\"$BIN\" scan --summary \"$work/tree\" | grep '\\.mp3'"
+
+# The counts have to agree with the lines, or one of the two views is lying.
+assert_stdout_contains 'same' 'summary total matches the number of lines' \
+    sh -c "lines=\$(\"$BIN\" scan \"$work/tree\" | wc -l | tr -d ' ');
+           counted=\$(\"$BIN\" scan --summary \"$work/tree\" | head -1 | cut -d' ' -f1);
+           [ \"\$lines\" = \"\$counted\" ] && echo same || echo \"\$lines vs \$counted\""
+
+# An option written after a path still applies to it.
+assert_stdout_contains 'same' 'option position does not matter' \
+    sh -c "a=\$(\"$BIN\" scan --summary \"$work/tree\"); b=\$(\"$BIN\" scan \"$work/tree\" --summary);
+           [ \"\$a\" = \"\$b\" ] && echo same || echo differs"
+
+# An unknown option is a usage error, not something to ignore.
+assert_status 1 'unknown option exits 1' "$BIN" scan --nonsense "$work/tree"
+assert_stderr_contains "unknown option '--nonsense'" 'unknown option is named' \
+    "$BIN" scan --nonsense "$work/tree"
+
+# -- ends option parsing, for a file whose name begins with a dash.
+: > "$work/--summary"
+assert_status 0 'a path after -- is a path, not an option' \
+    "$BIN" scan -- "$work/--summary"
+assert_stdout_contains '--summary' 'the dash-named file is reported' \
+    sh -c "\"$BIN\" scan -- \"$work/--summary\" | cut -f1"
+
 # Unknown commands are an error, and the message names the offending command.
 assert_status 1 'unknown command exits 1' "$BIN" bogus
 assert_stderr_contains "unknown command 'bogus'" 'unknown command is named on stderr' "$BIN" bogus

@@ -7,10 +7,15 @@ nobody has to read this file to guess right.
 ## Synopsis
 
 ```
-id3ix scan <path>...
+id3ix scan [--summary] <path>...
 id3ix -h | --help
 id3ix -V | --version
 ```
+
+`--summary` prints counts instead of one line per file. It is described in
+[goals.md](goals.md). Options may be written before or after the paths: they
+are read in a pass of their own, so `scan dir --summary` and
+`scan --summary dir` do the same thing.
 
 ## What scan takes
 
@@ -88,6 +93,12 @@ for the end, so a nested file appears at the position its directory sorts to.
 Given `alpha.mp3`, `bravo.mp3`, `inner/nested.mp3`, `mike.mp3` and `zulu.mp3`,
 `nested.mp3` comes out third. That keeps an album's files next to the directory
 they came from, which is what makes the output readable a screen at a time.
+
+## `--` ends option parsing
+
+Everything after `--` is a path, even if it begins with a dash. Standard, and
+the only way to name a file called `--summary` without it being read as the
+option of the same name.
 
 ## Exit codes
 
@@ -169,16 +180,14 @@ The principle worth keeping: **a flag should change what the tool does, not
 describe what it was given.** Anything determinable by looking should be looked
 up, because that cannot be got wrong and needs no documentation.
 
-Flags that would earn their place here are the ones expressing a choice that
-cannot be inferred — `--summary` for counts instead of per-file lines,
+Flags that earn their place are the ones expressing a choice that cannot be
+inferred. `--summary` is one, and exists. Others that would qualify:
 `--missing-artist` to list only problem files, `-L` to follow symlinks after
 all, or `--no-recurse` so a directory means the files directly in it. Note that
 even `--no-recurse` describes the action, not the argument.
 
 ## Undecided
 
-- **`--` to end option parsing**, for paths that begin with a dash. Standard,
-  cheap, worth adding once there are enough options for it to matter.
 - **AppleDouble files.** Music copied to exFAT or FAT drives on macOS grows
   companion files named `._track.mp3`, which end in `.mp3`, are not audio, and
   will show up in a walk as junk. Whether to skip them by default or report

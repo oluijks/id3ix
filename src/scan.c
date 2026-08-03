@@ -119,24 +119,120 @@ static const char *status_word(int result, const struct id3v2_tag *tag)
     }
 }
 
-/* One line per file, tab separated, so that a collection can be counted,
- * filtered and sorted with the tools that already exist rather than with
- * options invented here. A file that could not be read still gets a line: the
- * ones with problems are the point, and a report that quietly omitted them
+/* Adds one file to the totals. Exactly one of the status counts is incremented
+ * for every file seen, so they add up to the total and a summary cannot
+ * silently lose anything. */
+static void count_file(struct scan_totals *totals, int result,
+                       const struct id3v2_tag *tag)
+{
+    totals->files++;
+
+    switch (result)
+    {
+    case ID3V2_OK:
+        if (tag->version == 4)
+        {
+            totals->v24++;
+        }
+        else
+        {
+            totals->v23++;
+        }
+
+        totals->tagged++;
+
+        if (tag->title[0] == '\0')
+        {
+            totals->missing_title++;
+        }
+
+        if (tag->artist[0] == '\0')
+        {
+            totals->missing_artist++;
+        }
+
+        if (tag->album[0] == '\0')
+        {
+            totals->missing_album++;
+        }
+
+        if (tag->track[0] == '\0')
+        {
+            totals->missing_track++;
+        }
+
+        if (tag->year[0] == '\0')
+        {
+            totals->missing_year++;
+        }
+
+        break;
+    case ID3V2_ENOTAG:
+        totals->no_tag++;
+        break;
+    case ID3V2_EVERSION:
+        totals->old_version++;
+        break;
+    case ID3V2_EMALFORMED:
+        totals->malformed++;
+        break;
+    case ID3V2_EUNSUPPORTED:
+        totals->unsupported++;
+        break;
+    default:
+        totals->unreadable++;
+        break;
+    }
+}
+
+/* Reads one file, counts it, and prints one tab separated line unless the
+ * caller only wanted the counts. The line format exists so that a collection
+ * can be filtered and sorted with the tools that already exist rather than
+ * with options invented here. A file that could not be read still gets a line:
+ * the ones with problems are the point, and a report that quietly omitted them
  * would be worse than useless.
  *
  * Fields are printed raw because they cannot contain a tab or a newline --
  * store_text discards control characters as it decodes. */
-static void report_file(const char *path)
+static void report_file(const char *path, struct scan_options *options)
 {
     struct id3v2_tag tag;
     int result = id3v2_read(path, &tag);
 
-    printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", path, status_word(result, &tag),
-           tag.title, tag.artist, tag.album, tag.track, tag.year);
+    count_file(&options->totals, result, &tag);
+
+    if (options->print_lines)
+    {
+        printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n", path, status_word(result, &tag),
+               tag.title, tag.artist, tag.album, tag.track, tag.year);
+    }
 }
 
-static int scan_directory(const char *path)
+void scan_print_summary(const struct scan_totals *totals)
+{
+    printf("%lu files\n\n", totals->files);
+
+    printf("  %-12s %6lu\n", "ID3v2.3", totals->v23);
+    printf("  %-12s %6lu\n", "ID3v2.4", totals->v24);
+    printf("  %-12s %6lu\n", "no tag", totals->no_tag);
+    printf("  %-12s %6lu\n", "ID3v2.2", totals->old_version);
+    printf("  %-12s %6lu\n", "malformed", totals->malformed);
+    printf("  %-12s %6lu\n", "unsupported", totals->unsupported);
+    printf("  %-12s %6lu\n", "unreadable", totals->unreadable);
+
+    /* Every row is printed even at zero. A report whose shape changes with its
+     * contents cannot be compared against the one from last week, which is
+     * most of what a summary is for. */
+    printf("\n%lu with a tag, of which\n\n", totals->tagged);
+
+    printf("  %-12s %6lu\n", "no title", totals->missing_title);
+    printf("  %-12s %6lu\n", "no artist", totals->missing_artist);
+    printf("  %-12s %6lu\n", "no album", totals->missing_album);
+    printf("  %-12s %6lu\n", "no track", totals->missing_track);
+    printf("  %-12s %6lu\n", "no year", totals->missing_year);
+}
+
+static int scan_directory(const char *path, struct scan_options *options)
 {
     struct entry_names names = {NULL, 0, 0};
     const struct dirent *entry;
@@ -205,14 +301,14 @@ static int scan_directory(const char *path)
 
         if (S_ISDIR(info.st_mode))
         {
-            if (scan_directory(child) != 0)
+            if (scan_directory(child, options) != 0)
             {
                 failed = -1;
             }
         }
         else if (S_ISREG(info.st_mode) && has_mp3_extension(name))
         {
-            report_file(child);
+            report_file(child, options);
         }
     }
 
@@ -221,7 +317,7 @@ static int scan_directory(const char *path)
     return failed;
 }
 
-int scan_path(const char *path)
+int scan_path(const char *path, struct scan_options *options)
 {
     struct stat info;
 
@@ -237,14 +333,14 @@ int scan_path(const char *path)
 
     if (S_ISDIR(info.st_mode))
     {
-        return scan_directory(path);
+        return scan_directory(path, options);
     }
 
     if (S_ISREG(info.st_mode))
     {
         /* No extension test. The caller named this file, so whatever it is
          * called, they meant it. */
-        report_file(path);
+        report_file(path, options);
 
         return 0;
     }

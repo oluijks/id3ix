@@ -67,10 +67,46 @@ escape sequences to whoever runs this.
 What `scan` accepts, and the conventions it borrows from other Unix tools, is
 described in [cli.md](cli.md).
 
+### The summary
+
+`--summary` prints counts instead of a line per file: how many files, how they
+break down by tag version or by the reason there is no tag, and among the ones
+that do have a tag, how many are missing each field.
+
+```
+1247 files
+
+  ID3v2.3        1004
+  ID3v2.4         107
+  no tag           83
+  ID3v2.2          12
+  malformed         1
+  unsupported       0
+  unreadable        0
+
+1123 with a tag, of which
+
+  no title          9
+  no artist        14
+  no album        213
+  no track        402
+  no year         388
+```
+
+Missing fields are counted only among files whose tag could be read. A file
+with no tag has no title either, and counting that as a missing title would
+restate the same problem in a second place and leave both numbers meaning
+nothing.
+
+Every row is printed even at zero, so the shape of the report does not change
+with its contents and this week's can be compared against last week's.
+
+This is the one view meant to be read rather than piped. It answers "how bad is
+it" before deciding what to do, which is the question the per-file lines are
+bad at.
+
 **Done when** it can be pointed at a real music folder and the output looks
 right.
-
-Needs: the ID3v2 frame loop, which is the TODO in `src/id3v2.c`.
 
 ## Stage 2: diagnose
 

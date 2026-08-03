@@ -43,10 +43,48 @@ int main(int argc, char **argv)
 
     if (strcmp(argv[1], "scan") == 0)
     {
+        struct scan_options options = {1, {0}};
+        int summary = 0;
+        int end_of_options = 0;
         int unreadable = 0;
+        int paths = 0;
         int index;
 
-        if (argc < 3)
+        /* Options are read in a pass of their own, so that a flag written
+         * after a path still applies to it. Doing it in one pass would make
+         * `scan dir --summary` behave differently from `scan --summary dir`,
+         * which nobody would expect and everybody would eventually type. */
+        for (index = 2; index < argc; index++)
+        {
+            if (end_of_options || argv[index][0] != '-')
+            {
+                paths++;
+
+                continue;
+            }
+
+            if (strcmp(argv[index], "--") == 0)
+            {
+                /* Everything after this is a path, even if it looks like an
+                 * option. The escape hatch for a file whose name begins with a
+                 * dash. */
+                end_of_options = 1;
+            }
+            else if (strcmp(argv[index], "--summary") == 0)
+            {
+                summary = 1;
+                options.print_lines = 0;
+            }
+            else
+            {
+                fprintf(stderr, "id3ix: unknown option '%s'\n", argv[index]);
+                show_usage(stderr);
+
+                return EXIT_FAILURE;
+            }
+        }
+
+        if (paths == 0)
         {
             fprintf(stderr, "id3ix: scan requires a path\n");
             show_usage(stderr);
@@ -62,12 +100,29 @@ int main(int argc, char **argv)
          * file and nothing else, so that it can be piped straight into awk or
          * sort; progress chatter would be another line for every caller to
          * filter back out. */
+        end_of_options = 0;
+
         for (index = 2; index < argc; index++)
         {
-            if (scan_path(argv[index]) != 0)
+            if (!end_of_options && argv[index][0] == '-')
+            {
+                if (strcmp(argv[index], "--") == 0)
+                {
+                    end_of_options = 1;
+                }
+
+                continue;
+            }
+
+            if (scan_path(argv[index], &options) != 0)
             {
                 unreadable = 1;
             }
+        }
+
+        if (summary)
+        {
+            scan_print_summary(&options.totals);
         }
 
         if (unreadable)
@@ -90,8 +145,10 @@ static void show_usage(FILE *stream)
 {
     fprintf(stream, "id3ix - metadata utility\n\n");
     fprintf(stream, "Usage:\n");
-    fprintf(stream, "  id3ix scan <path>...\n\n");
+    fprintf(stream, "  id3ix scan [--summary] <path>...\n\n");
     fprintf(stream, "Options:\n");
+    fprintf(stream, "  --summary      Print counts instead of one line per "
+                    "file\n");
     fprintf(stream, "  -h, --help     Show this help message\n");
     fprintf(stream, "  -V, --version  Show version information\n");
 }
