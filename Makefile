@@ -2,11 +2,16 @@
 # and leaving it alone lets the environment or `make CC=...` choose one. CI
 # pins the compilers it tests explicitly.
 VERSION = 0.1.0
-CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -g -DID3IX_VERSION=\"$(VERSION)\"
+# _POSIX_C_SOURCE is needed because -std=c17 asks for strict ISO C, under which
+# the C library hides POSIX interfaces. src/scan.c uses opendir, readdir and
+# lstat, none of which are ISO C.
+CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -g -D_POSIX_C_SOURCE=200809L \
+         -DID3IX_VERSION=\"$(VERSION)\"
 PREFIX ?= /usr/local
 TARGET = id3ix
 DEBUG_TARGET = $(TARGET)-debug
-SOURCE = src/main.c
+SOURCES = $(wildcard src/*.c)
+OBJECTS = $(SOURCES:.c=.o)
 HEADERS = $(wildcard src/*.h)
 
 # Sanitizer build flags. -fno-sanitize-recover=all is the important one:
@@ -21,18 +26,27 @@ SANFLAGS = -fsanitize=address,undefined -fno-sanitize-recover=all \
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCE) $(HEADERS) Makefile
-	$(CC) $(CFLAGS) $(SOURCE) -o $(TARGET)
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) $(OBJECTS) -o $(TARGET)
+
+# Every object depends on every header, which recompiles a little more than
+# strictly necessary but never too little. Worth revisiting only if the build
+# becomes slow enough to notice.
+src/%.o: src/%.c $(HEADERS) Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Built under a separate name so the sanitized and normal binaries can coexist
-# without needing a clean in between.
+# without needing a clean in between. Compiled straight from the sources rather
+# than reusing src/*.o, because those objects are built without SANFLAGS and
+# mixing the two would link successfully while instrumenting only part of the
+# program.
 debug: $(DEBUG_TARGET)
 
-$(DEBUG_TARGET): $(SOURCE) $(HEADERS) Makefile
-	$(CC) $(CFLAGS) $(SANFLAGS) $(SOURCE) -o $(DEBUG_TARGET)
+$(DEBUG_TARGET): $(SOURCES) $(HEADERS) Makefile
+	$(CC) $(CFLAGS) $(SANFLAGS) $(SOURCES) -o $(DEBUG_TARGET)
 
 clean:
-	rm -f $(TARGET) $(DEBUG_TARGET)
+	rm -f $(TARGET) $(DEBUG_TARGET) $(OBJECTS)
 
 test: $(TARGET)
 	VERSION=$(VERSION) ./tests/run.sh

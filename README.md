@@ -24,6 +24,19 @@ Options:
 Help and version output go to stdout and exit `0`; usage errors go to stderr
 and exit `1`.
 
+## Layout
+
+```
+src/main.c     command line handling
+src/scan.c     directory walking, the only code that touches the filesystem
+src/id3v2.c    ID3v2 tag parsing, works from a path and bytes
+tests/run.sh   CLI smoke tests
+```
+
+Keeping the walk and the parsing apart means the parser can be exercised
+without files on disk, which matters because the cases worth testing are
+malformed tags and those are easier to build as byte arrays than as real files.
+
 ## Development
 
 The version number lives in one place: `VERSION` at the top of the `Makefile`,
