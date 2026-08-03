@@ -5,7 +5,7 @@ TARGET = id3ix
 SOURCE = src/main.c
 HEADERS = $(wildcard src/*.h)
 
-.PHONY: all clean format format-check lint install uninstall
+.PHONY: all clean test format format-check lint install uninstall
 
 all: $(TARGET)
 
@@ -15,6 +15,9 @@ $(TARGET): $(SOURCE) $(HEADERS)
 clean:
 	rm -f $(TARGET)
 
+test: $(TARGET)
+	./tests/run.sh
+
 format:
 	clang-format -i src/*.c $(HEADERS)
 
@@ -23,6 +26,7 @@ format-check:
 
 lint:
 	cppcheck --enable=warning,style,performance,portability --error-exitcode=1 src/*.c $(HEADERS)
+	shellcheck tests/run.sh
 
 install: $(TARGET)
 	install -d $(DESTDIR)$(PREFIX)/bin

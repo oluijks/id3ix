@@ -2,22 +2,40 @@
 #include <stdlib.h>
 #include <string.h>
 
-void show_usage(void);
+#define ID3IX_VERSION "0.1.0"
+
+static void show_usage(FILE *stream);
+static void show_version(void);
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        show_usage();
+        show_usage(stderr);
 
         return EXIT_FAILURE;
+    }
+
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)
+    {
+        show_usage(stdout);
+
+        return EXIT_SUCCESS;
+    }
+
+    if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)
+    {
+        show_version();
+
+        return EXIT_SUCCESS;
     }
 
     if (strcmp(argv[1], "scan") == 0)
     {
         if (argc < 3)
         {
-            fprintf(stderr, "Usage: id3ix scan <path>\n");
+            fprintf(stderr, "id3ix: scan requires a directory\n");
+            show_usage(stderr);
 
             return EXIT_FAILURE;
         }
@@ -26,7 +44,8 @@ int main(int argc, char **argv)
     }
     else
     {
-        fprintf(stderr, "Usage: id3ix scan <path>\n");
+        fprintf(stderr, "id3ix: unknown command '%s'\n", argv[1]);
+        show_usage(stderr);
 
         return EXIT_FAILURE;
     }
@@ -34,9 +53,17 @@ int main(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-void show_usage(void)
+static void show_usage(FILE *stream)
 {
-    printf("id3ix - metadata utility\n\n");
-    printf("Usage:\n");
-    printf("  id3ix scan <directory>\n");
+    fprintf(stream, "id3ix - metadata utility\n\n");
+    fprintf(stream, "Usage:\n");
+    fprintf(stream, "  id3ix scan <directory>\n\n");
+    fprintf(stream, "Options:\n");
+    fprintf(stream, "  -h, --help     Show this help message\n");
+    fprintf(stream, "  -v, --version  Show version information\n");
+}
+
+static void show_version(void)
+{
+    printf("id3ix %s\n", ID3IX_VERSION);
 }
