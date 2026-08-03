@@ -1,3 +1,5 @@
+#include "scan.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +47,16 @@ int main(int argc, char **argv)
         }
 
         printf("Scanning...\n");
+
+        /* stdout is block-buffered when it is not a terminal, while stderr is
+         * not buffered at all. Without this flush, any error the walk writes to
+         * stderr appears ahead of this line whenever output is piped. */
+        fflush(stdout);
+
+        if (scan_directory(argv[2]) != 0)
+        {
+            return EXIT_FAILURE;
+        }
     }
     else
     {
