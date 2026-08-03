@@ -48,6 +48,9 @@ id3ix scan ~/Music | cut -f2 | sort | uniq -c        # which tag versions
 
 The tool turns opaque binary into lines of text. Established tools do the rest.
 
+What `scan` accepts, and the conventions it borrows from other Unix tools, is
+described in [cli.md](cli.md).
+
 **Done when** it can be pointed at a real music folder and the output looks
 right.
 
