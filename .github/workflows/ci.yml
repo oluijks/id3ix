@@ -8,17 +8,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      # Report both compilers even when one fails, so a compiler-specific
+      # problem is obvious rather than hidden behind the first failure.
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ${{ matrix.cc }}
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.cc }}
+
+      - name: Build and test with ${{ matrix.cc }}
+        run: make CC=${{ matrix.cc }} test
+
+  checks:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang clang-format cppcheck shellcheck
-
-      - name: Build
-        run: make
-
-      - name: Test
-        run: make test
+        run: sudo apt-get update && sudo apt-get install -y clang-format cppcheck shellcheck
 
       - name: Format check
         run: make format-check
