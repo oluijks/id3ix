@@ -19,7 +19,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        printf("Unknown command\n");
+        fprintf(stderr, "Usage: id3ix scan <path>\n");
     }
 
     return EXIT_SUCCESS;

@@ -1,4 +1,4 @@
-CC = cc
+CC = clang
 CFLAGS = -std=c17 -Wall -Wextra -Wpedantic -g
 TARGET = id3ix
 SOURCE = src/main.c
@@ -13,4 +13,4 @@ format:
 	clang-format -i src/*.c src/*.h
 
 format-check:
-	clang-format --dry-run --Werror src/*.c src/*.h
+	clang-format --dry-run --Werror src/*.c src/*. hey
