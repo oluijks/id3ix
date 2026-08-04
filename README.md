@@ -43,7 +43,8 @@ malformed tags and those are easier to build as byte arrays than as real files.
 
 ## Trying it out
 
-Six sample MP3s are committed in `tests/samples`, so this works straight away:
+Twelve sample MP3s are committed in `tests/samples`, so this works straight
+away:
 
 ```sh
 ./id3ix scan tests/samples
@@ -52,9 +53,16 @@ Six sample MP3s are committed in `tests/samples`, so this works straight away:
 
 They are generated rather than downloaded, so they cannot arrive as an error
 page wearing an `.mp3` name, and they cover cases a random download will not:
-Latin-1 accents, Cyrillic in UTF-16, a v2.4 tag in UTF-8, a partial tag and a
-file with no tag at all. About a kilobyte each, holding a fifth of a second of
-silence, since the audio is not the point.
+Latin-1 accents, Cyrillic in UTF-16, a v2.4 tag in UTF-8, tags with holes in
+them, and one file for every status the reader can report -- an ID3v2.2 tag, a
+frame larger than the tag containing it, an unsynchronised tag, a file that is
+not an MP3 at all, and one with no tag. About a kilobyte each, holding a fifth
+of a second of silence, since the audio is not the point.
+
+The one status with no committed sample is `unreadable`, which needs a file
+that cannot be opened. Git records only the executable bit, so such a file
+would arrive readable from a clone; the test suite makes its own at run time
+instead, and `make-samples.sh` writes one that git ignores.
 
 `tools/make-samples.sh` regenerates them, and writes them anywhere you ask:
 

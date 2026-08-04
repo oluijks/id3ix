@@ -60,3 +60,8 @@ dkms.conf
 # Leading slash so this applies to the top level only: tests/samples holds the
 # committed fixtures and must not be swept up by it.
 /samples/
+
+# Made by tools/make-samples.sh but deliberately not committed: git records
+# only the executable bit, so an unreadable file would arrive readable from a
+# clone and stop being the thing it is meant to demonstrate.
+13-unreadable.mp3
