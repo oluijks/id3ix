@@ -43,16 +43,27 @@ malformed tags and those are easier to build as byte arrays than as real files.
 
 ## Trying it out
 
+Six sample MP3s are committed in `tests/samples`, so this works straight away:
+
 ```sh
-tools/make-samples.sh          # writes six real MP3s into samples/
-./id3ix scan samples/
-./id3ix scan --summary samples/
+./id3ix scan tests/samples
+./id3ix scan --summary tests/samples
 ```
 
-The samples are generated rather than downloaded, so they cannot arrive as an
-error page wearing an `.mp3` name, and they cover cases a random download will
-not: Latin-1 accents, Cyrillic in UTF-16, a v2.4 tag in UTF-8, a partial tag
-and a file with no tag at all. Needs `lame` and `python3`.
+They are generated rather than downloaded, so they cannot arrive as an error
+page wearing an `.mp3` name, and they cover cases a random download will not:
+Latin-1 accents, Cyrillic in UTF-16, a v2.4 tag in UTF-8, a partial tag and a
+file with no tag at all. About a kilobyte each, holding a fifth of a second of
+silence, since the audio is not the point.
+
+`tools/make-samples.sh` regenerates them, and writes them anywhere you ask:
+
+```sh
+tools/make-samples.sh                # into samples/, which git ignores
+tools/make-samples.sh tests/samples  # the committed set, byte for byte
+```
+
+It needs `lame` and `python3`. Nothing else does.
 
 For a readable table rather than tab separated fields, pipe through `column`:
 

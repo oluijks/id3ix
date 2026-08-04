@@ -134,15 +134,63 @@ assert_status 1 'scan without a path exits 1' "$BIN" scan
 assert_stderr_contains 'requires a path' 'scan without a path explains why' "$BIN" scan
 assert_status 0 'scan with a path exits 0' "$BIN" scan "$script_dir"
 
-# stdout carries one line per file and nothing else. This directory holds the
-# test script and no music, so a successful scan of it says nothing at all --
-# any progress message or banner would show up here.
-assert_stdout_empty 'scan of a directory with no music says nothing' "$BIN" scan "$script_dir"
+# stdout carries one line per file and nothing else, so scanning a directory
+# holding no music says nothing at all. Any progress message or banner would
+# show up here. It needs a directory of its own: this script's own directory
+# now holds the sample MP3s.
+empty=$(mktemp -d)
+trap 'rm -rf "$empty" "${work:-}"' EXIT INT TERM
+
+assert_stdout_empty 'scan of a directory with no music says nothing' "$BIN" scan "$empty"
+
+# The committed sample files, which are real MP3s carrying real tags. Unlike
+# the empty files below, these exercise the parser end to end: a failure here
+# means a tag that decoded correctly yesterday does not today.
+samples="$script_dir/samples"
+
+if [ -d "$samples" ]
+then
+    assert_stdout_contains 'First Light' 'a v2.3 title is decoded' \
+        sh -c "\"$BIN\" scan \"$samples/01-complete.mp3\" | cut -f3"
+    assert_stdout_contains 'Morning Records' 'a v2.3 album is decoded' \
+        sh -c "\"$BIN\" scan \"$samples/01-complete.mp3\" | cut -f5"
+    assert_stdout_contains '2/12' 'a track number keeps its total' \
+        sh -c "\"$BIN\" scan \"$samples/01-complete.mp3\" | cut -f6"
+
+    # Latin-1 bytes have to come out as UTF-8, or an accent reaches the
+    # terminal as a byte that is not valid UTF-8.
+    assert_stdout_contains 'Étude à Trois' 'Latin-1 accents are converted to UTF-8' \
+        sh -c "\"$BIN\" scan \"$samples/02-accents.mp3\" | cut -f3"
+
+    # Cyrillic cannot be spelled in Latin-1, so a v2.3 tag holding it has to
+    # use UTF-16. This is the case that matters for a non-English collection.
+    assert_stdout_contains 'Пісня Перша' 'UTF-16 Cyrillic is decoded' \
+        sh -c "\"$BIN\" scan \"$samples/03-cyrillic.mp3\" | cut -f3"
+    assert_stdout_contains 'Тестовий Гурт' 'UTF-16 Cyrillic artist is decoded' \
+        sh -c "\"$BIN\" scan \"$samples/03-cyrillic.mp3\" | cut -f4"
+
+    # v2.4 differs from v2.3 in how frame sizes are encoded, so decoding one
+    # proves nothing about the other.
+    assert_stdout_contains '2.4' 'a v2.4 tag is recognised as v2.4' \
+        sh -c "\"$BIN\" scan \"$samples/04-v24-utf8.mp3\" | cut -f2"
+    assert_stdout_contains 'Blå Himmel' 'UTF-8 text in a v2.4 tag is decoded' \
+        sh -c "\"$BIN\" scan \"$samples/04-v24-utf8.mp3\" | cut -f3"
+    assert_stdout_contains '1997-09-01' 'TDRC is read as the year field in v2.4' \
+        sh -c "\"$BIN\" scan \"$samples/04-v24-utf8.mp3\" | cut -f7"
+
+    # A real MP3 with no tag is untagged, not unrecognised.
+    assert_stdout_contains 'none' 'a real untagged MP3 reports no tag' \
+        sh -c "\"$BIN\" scan \"$samples/06-untagged.mp3\" | cut -f2"
+
+    assert_stdout_contains '5' 'the samples summary counts the tagged files' \
+        sh -c "\"$BIN\" scan --summary \"$samples\" | grep 'with a tag' | cut -d' ' -f1"
+fi
 
 # A tree to walk. The files need no valid tag: every one still gets a line, and
 # these tests are about which lines appear and in what order.
+# The trap set alongside "$empty" above already covers this one; a second trap
+# would replace the first rather than add to it, leaving "$empty" behind.
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT INT TERM
 
 mkdir -p "$work/tree/inner" "$work/other"
 for name in zulu alpha mike bravo

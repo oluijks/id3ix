@@ -36,9 +36,11 @@ fi
 
 mkdir -p "$out"
 
-# Two seconds of silence: 44100 samples/s * 2 s * 2 bytes * 2 channels.
-head -c 352800 /dev/zero > "$out/.silence.raw"
-lame -r -s 44.1 --bitwidth 16 -m m -b 128 --quiet \
+# A fifth of a second of silence at the lowest useful bitrate. The audio is
+# not the point and small files are, so these come out around a kilobyte each
+# rather than sixty.
+head -c 17640 /dev/zero > "$out/.silence.raw"
+lame -r -s 44.1 --bitwidth 16 -m m -b 32 --quiet \
     "$out/.silence.raw" "$out/.audio.mp3" 2>/dev/null
 rm -f "$out/.silence.raw"
 
@@ -79,31 +81,33 @@ def write(name, frames, major=3, padding=64):
         handle.write(tag + audio)
 
 
+# Invented titles throughout: these are fixtures, and a made up name says so
+# at a glance while exercising the encodings just as well as a real one.
 write('01-complete.mp3', [
-    frame(b'TIT2', 'Paranoid Android', 0, 3),
-    frame(b'TPE1', 'Radiohead', 0, 3),
-    frame(b'TALB', 'OK Computer', 0, 3),
+    frame(b'TIT2', 'First Light', 0, 3),
+    frame(b'TPE1', 'The Wind Ensemble', 0, 3),
+    frame(b'TALB', 'Morning Records', 0, 3),
     frame(b'TRCK', '2/12', 0, 3),
     frame(b'TYER', '1997', 0, 3),
 ])
 
 # Latin-1 with accents, which have to be converted to UTF-8 on the way out.
 write('02-accents.mp3', [
-    frame(b'TIT2', 'Café del Mar', 0, 3),
-    frame(b'TPE1', 'Émilie Simon', 0, 3),
+    frame(b'TIT2', 'Étude à Trois', 0, 3),
+    frame(b'TPE1', 'Renée Dupré', 0, 3),
 ])
 
 # Cyrillic. A v2.3 tag has no choice but UTF-16 here: v2.3 predates UTF-8, and
 # Latin-1 cannot spell it.
 write('03-cyrillic.mp3', [
-    frame(b'TIT2', 'Ой у лузі червона калина', 1, 3),
-    frame(b'TPE1', 'Пікардійська Терція', 1, 3),
+    frame(b'TIT2', 'Пісня Перша', 1, 3),
+    frame(b'TPE1', 'Тестовий Гурт', 1, 3),
 ])
 
 # v2.4: synchsafe frame sizes, UTF-8, and TDRC in place of TYER.
 write('04-v24-utf8.mp3', [
-    frame(b'TIT2', 'Jóga', 3, 4),
-    frame(b'TPE1', 'Björk', 3, 4),
+    frame(b'TIT2', 'Blå Himmel', 3, 4),
+    frame(b'TPE1', 'Håkan Ström', 3, 4),
     frame(b'TDRC', '1997-09-01', 3, 4),
 ], major=4)
 
