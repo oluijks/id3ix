@@ -56,6 +56,7 @@ dkms.conf
 # debug information files
 *.dwo
 
-# Sample audio downloaded for trying the tool out. Not committed: the files are
-# large, the licences vary, and anything in git history stays there.
-samples/
+# Scratch space for audio to try the tool on, whether generated or downloaded.
+# Leading slash so this applies to the top level only: tests/samples holds the
+# committed fixtures and must not be swept up by it.
+/samples/
