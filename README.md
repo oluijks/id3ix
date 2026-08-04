@@ -41,6 +41,25 @@ Keeping the walk and the parsing apart means the parser can be exercised
 without files on disk, which matters because the cases worth testing are
 malformed tags and those are easier to build as byte arrays than as real files.
 
+## Trying it out
+
+```sh
+tools/make-samples.sh          # writes six real MP3s into samples/
+./id3ix scan samples/
+./id3ix scan --summary samples/
+```
+
+The samples are generated rather than downloaded, so they cannot arrive as an
+error page wearing an `.mp3` name, and they cover cases a random download will
+not: Latin-1 accents, Cyrillic in UTF-16, a v2.4 tag in UTF-8, a partial tag
+and a file with no tag at all. Needs `lame` and `python3`.
+
+For a readable table rather than tab separated fields, pipe through `column`:
+
+```sh
+./id3ix scan samples/ | cut -f1-5 | LC_ALL=C.UTF-8 column -t -s "$(printf '\t')"
+```
+
 ## Development
 
 The version number lives in one place: `VERSION` at the top of the `Makefile`,
