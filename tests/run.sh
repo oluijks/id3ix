@@ -182,8 +182,43 @@ then
     assert_stdout_contains 'none' 'a real untagged MP3 reports no tag' \
         sh -c "\"$BIN\" scan \"$samples/06-untagged.mp3\" | cut -f2"
 
-    assert_stdout_contains '5' 'the samples summary counts the tagged files' \
-        sh -c "\"$BIN\" scan --summary \"$samples\" | grep 'with a tag' | cut -d' ' -f1"
+    # Every status the reader can report has a sample behind it, so a change to
+    # any of them shows up here rather than only on someone's real collection.
+    assert_stdout_contains 'oldversion' 'an ID3v2.2 tag is reported, not parsed' \
+        sh -c "\"$BIN\" scan \"$samples/09-v22-old.mp3\" | cut -f2"
+    assert_stdout_contains 'malformed' 'a frame larger than its tag is malformed' \
+        sh -c "\"$BIN\" scan \"$samples/10-malformed.mp3\" | cut -f2"
+    assert_stdout_contains 'unsupported' 'an unsynchronised tag is unsupported' \
+        sh -c "\"$BIN\" scan \"$samples/11-unsynchronised.mp3\" | cut -f2"
+    assert_stdout_contains 'notaudio' 'an error page named .mp3 is not audio' \
+        sh -c "\"$BIN\" scan \"$samples/12-not-an-mp3.mp3\" | cut -f2"
+
+    assert_stdout_contains '7 with a tag' 'the samples summary counts the tagged files' \
+        sh -c "\"$BIN\" scan --summary \"$samples\" | grep 'with a tag'"
+
+    # The counts have to add up: every file lands in exactly one status, so the
+    # status rows together must equal the total.
+    assert_stdout_contains 'same' 'the summary status counts add up to the total' \
+        sh -c "s=\$(\"$BIN\" scan --summary \"$samples\");
+               total=\$(printf '%s' \"\$s\" | head -1 | cut -d' ' -f1);
+               rows=\$(printf '%s' \"\$s\" | sed -n '3,10p' | awk '{n+=\$NF} END {print n}');
+               [ \"\$total\" = \"\$rows\" ] && echo same || echo \"\$total vs \$rows\""
+fi
+
+# A file that exists and cannot be opened. Made here rather than committed:
+# git records only the executable bit, so an unreadable file would arrive
+# readable from a clone. Skipped for root, who is exempt from the check.
+if [ "$(id -u)" -ne 0 ]
+then
+    locked=$(mktemp -d)
+    : > "$locked/locked.mp3"
+    chmod 000 "$locked/locked.mp3"
+
+    assert_stdout_contains 'unreadable' 'a file that cannot be opened is unreadable' \
+        sh -c "\"$BIN\" scan \"$locked/locked.mp3\" | cut -f2"
+
+    chmod 644 "$locked/locked.mp3"
+    rm -rf "$locked"
 fi
 
 # A tree to walk. The files need no valid tag: every one still gets a line, and
