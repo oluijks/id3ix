@@ -20,6 +20,7 @@ struct scan_totals
     unsigned long old_version;
     unsigned long malformed;
     unsigned long unsupported;
+    unsigned long not_audio;
     unsigned long unreadable;
 
     /* Counted only among files whose tag could be read. A file with no tag has

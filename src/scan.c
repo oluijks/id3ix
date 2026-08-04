@@ -129,6 +129,8 @@ static const char *status_word(int result, const struct id3v2_tag *tag)
         return "malformed";
     case ID3V2_EUNSUPPORTED:
         return "unsupported";
+    case ID3V2_ENOTAUDIO:
+        return "notaudio";
     default:
         return "unknown";
     }
@@ -194,6 +196,9 @@ static void count_file(struct scan_totals *totals, int result,
     case ID3V2_EUNSUPPORTED:
         totals->unsupported++;
         break;
+    case ID3V2_ENOTAUDIO:
+        totals->not_audio++;
+        break;
     default:
         totals->unreadable++;
         break;
@@ -233,6 +238,7 @@ void scan_print_summary(const struct scan_totals *totals)
     printf("  %-12s %6lu\n", "ID3v2.2", totals->old_version);
     printf("  %-12s %6lu\n", "malformed", totals->malformed);
     printf("  %-12s %6lu\n", "unsupported", totals->unsupported);
+    printf("  %-12s %6lu\n", "not an MP3", totals->not_audio);
     printf("  %-12s %6lu\n", "unreadable", totals->unreadable);
 
     /* Every row is printed even at zero. A report whose shape changes with its

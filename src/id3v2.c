@@ -31,6 +31,12 @@
  * keeps a frame claiming megabytes from mattering. */
 #define ID3V2_TEXT_READ_MAX 512
 
+/* How far into a file to look for the start of MPEG audio before concluding
+ * there is none. A file with no ID3v2 tag ought to begin with audio at once;
+ * the window is generous because calling a real recording "not audio" is a
+ * worse mistake than the reverse. */
+#define ID3V2_SYNC_SEARCH_MAX 4096
+
 /* Text frame encodings, given by the first byte of a text frame's data. */
 #define ID3V2_ENCODING_LATIN1 0x00
 #define ID3V2_ENCODING_UTF16_BOM 0x01
@@ -409,6 +415,76 @@ static int skip_extended_header(FILE *file, unsigned int major,
     return 0;
 }
 
+/* Whether these bytes begin an MPEG audio frame: eleven set bits, then fields
+ * that must not hold the values the format reserves. The eleven bits alone
+ * turn up too readily in arbitrary data to mean much on their own. */
+static int is_frame_header(const unsigned char *bytes)
+{
+    if (bytes[0] != 0xFF || (bytes[1] & 0xE0) != 0xE0)
+    {
+        return 0;
+    }
+
+    if ((bytes[1] & 0x18) == 0x08)
+    {
+        return 0; /* reserved MPEG version */
+    }
+
+    if ((bytes[1] & 0x06) == 0x00)
+    {
+        return 0; /* reserved layer */
+    }
+
+    if ((bytes[2] & 0xF0) == 0xF0)
+    {
+        return 0; /* bitrate index the format calls bad */
+    }
+
+    if ((bytes[2] & 0x0C) == 0x0C)
+    {
+        return 0; /* reserved sampling rate */
+    }
+
+    return 1;
+}
+
+/* Whether the file holds MPEG audio anywhere near its start.
+ *
+ * Worth asking because a file with no ID3v2 tag and no audio either is not an
+ * untagged recording, it is something else wearing an .mp3 name -- most often
+ * a download that returned an error page. Reporting both as "no tag" is true
+ * of each and useful about neither. */
+static int looks_like_mpeg_audio(FILE *file)
+{
+    unsigned char window[ID3V2_SYNC_SEARCH_MAX];
+    size_t filled;
+    size_t at;
+
+    if (fseek(file, 0, SEEK_SET) != 0)
+    {
+        return 0;
+    }
+
+    filled = fread(window, 1, sizeof(window), file);
+
+    for (at = 0; at + 2 < filled; at++)
+    {
+        if (is_frame_header(window + at))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+/* Distinguishes a recording with no tag from a file that is not a recording,
+ * for the paths where no ID3v2 tag was found. */
+static int untagged_or_not_audio(FILE *file)
+{
+    return looks_like_mpeg_audio(file) ? ID3V2_ENOTAG : ID3V2_ENOTAUDIO;
+}
+
 int id3v2_read(const char *path, struct id3v2_tag *out)
 {
     unsigned char header[ID3V2_HEADER_SIZE];
@@ -429,16 +505,20 @@ int id3v2_read(const char *path, struct id3v2_tag *out)
     if (fread(header, 1, sizeof(header), file) != sizeof(header))
     {
         /* Too short to hold a header, so it cannot hold a tag. */
+        int result = untagged_or_not_audio(file);
+
         fclose(file);
 
-        return ID3V2_ENOTAG;
+        return result;
     }
 
     if (memcmp(header, "ID3", 3) != 0)
     {
+        int result = untagged_or_not_audio(file);
+
         fclose(file);
 
-        return ID3V2_ENOTAG;
+        return result;
     }
 
     major = header[3];
@@ -585,6 +665,8 @@ const char *id3v2_strerror(int result)
         return "malformed ID3v2 tag";
     case ID3V2_EUNSUPPORTED:
         return "unsupported ID3v2 feature";
+    case ID3V2_ENOTAUDIO:
+        return "not an MP3";
     default:
         return "unknown error";
     }

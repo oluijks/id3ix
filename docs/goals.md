@@ -38,10 +38,17 @@ path <TAB> status <TAB> title <TAB> artist <TAB> album <TAB> track <TAB> year
 ```
 
 The status column is the tag version — `2.3` or `2.4` — or, where there are no
-fields to show, the reason: `none`, `malformed`, `oldversion`, `unsupported`,
-`unreadable`. Every file gets exactly one line including the broken ones, since
-those are the point of the exercise and a report that quietly dropped them
-would be worse than no report.
+fields to show, the reason: `none`, `notaudio`, `malformed`, `oldversion`,
+`unsupported`, `unreadable`.
+
+`none` and `notaudio` are worth keeping apart. `none` is a recording nobody
+tagged. `notaudio` is a file that is not a recording at all, whatever it is
+named — most often a download that returned an error page. Both have no tag;
+only one of them is a tagging problem.
+
+Every file gets exactly one line including the broken ones, since those are the
+point of the exercise and a report that quietly dropped them would be worse
+than no report.
 
 Short words rather than sentences, because this is something to match on.
 
@@ -82,6 +89,7 @@ that do have a tag, how many are missing each field.
   ID3v2.2          12
   malformed         1
   unsupported       0
+  not an MP3        3
   unreadable        0
 
 1123 with a tag, of which
@@ -174,9 +182,9 @@ hand, or by an existing tool now that there is something to aim it at.
 
 ## Where it is now
 
-The CLI, the build, the tests and the file layout exist. `scan` walks
-directories, finds `.mp3` files, and reads the ID3v2 header — version, and the
-size of the tag.
+Stage 1 is done. `scan` takes any number of files and directories, walks the
+directories in sorted order, reads ID3v2.3 and ID3v2.4 tags, and prints a line
+per file or a set of counts. Text arrives as UTF-8 whichever of the four
+encodings a tag used, so Cyrillic and accented Latin both come out readable.
 
-The frame loop is not written yet, so no actual titles or artists come out.
-That is the next thing, and everything above waits on it.
+Stage 2 has not been started. That is the next thing.
