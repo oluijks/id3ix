@@ -78,6 +78,21 @@ static int compare_names(const void *left, const void *right)
     return strcmp(*left_name, *right_name);
 }
 
+/* Length of 'path' with any trailing slashes left off, so that joining a name
+ * onto it can add exactly one. "samples/" and "samples///" both give 7, and "/"
+ * gives 0, which joins to "/name" rather than "//name". */
+static size_t length_without_trailing_slashes(const char *path)
+{
+    size_t length = strlen(path);
+
+    while (length > 0 && path[length - 1] == '/')
+    {
+        length--;
+    }
+
+    return length;
+}
+
 static int has_mp3_extension(const char *name)
 {
     size_t length = strlen(name);
@@ -114,6 +129,8 @@ static const char *status_word(int result, const struct id3v2_tag *tag)
         return "malformed";
     case ID3V2_EUNSUPPORTED:
         return "unsupported";
+    case ID3V2_ENOTAUDIO:
+        return "notaudio";
     default:
         return "unknown";
     }
@@ -179,6 +196,9 @@ static void count_file(struct scan_totals *totals, int result,
     case ID3V2_EUNSUPPORTED:
         totals->unsupported++;
         break;
+    case ID3V2_ENOTAUDIO:
+        totals->not_audio++;
+        break;
     default:
         totals->unreadable++;
         break;
@@ -218,6 +238,7 @@ void scan_print_summary(const struct scan_totals *totals)
     printf("  %-12s %6lu\n", "ID3v2.2", totals->old_version);
     printf("  %-12s %6lu\n", "malformed", totals->malformed);
     printf("  %-12s %6lu\n", "unsupported", totals->unsupported);
+    printf("  %-12s %6lu\n", "not an MP3", totals->not_audio);
     printf("  %-12s %6lu\n", "unreadable", totals->unreadable);
 
     /* Every row is printed even at zero. A report whose shape changes with its
@@ -237,6 +258,7 @@ static int scan_directory(const char *path, struct scan_options *options)
     struct entry_names names = {NULL, 0, 0};
     const struct dirent *entry;
     DIR *dir = opendir(path);
+    size_t stem = length_without_trailing_slashes(path);
     size_t index;
     int failed = 0;
 
@@ -277,11 +299,16 @@ static int scan_directory(const char *path, struct scan_options *options)
         struct stat info;
         int written;
 
-        written = snprintf(child, sizeof(child), "%s/%s", path, name);
+        /* A path typed with a trailing slash would otherwise produce
+         * "samples//track.mp3". Harmless to open, but it makes the same scan
+         * print different strings depending on how the argument was typed,
+         * which spoils diffing one run against another. */
+        written =
+            snprintf(child, sizeof(child), "%.*s/%s", (int)stem, path, name);
         if (written < 0 || (size_t)written >= sizeof(child))
         {
-            fprintf(stderr, "id3ix: path too long, skipping '%s/%s'\n", path,
-                    name);
+            fprintf(stderr, "id3ix: path too long, skipping '%.*s/%s'\n",
+                    (int)stem, path, name);
             failed = -1;
 
             continue;

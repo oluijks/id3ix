@@ -193,6 +193,28 @@ assert_status 2 'one bad path among good ones still exits 2' \
 assert_stdout_contains '7' 'every line has seven tab separated fields' \
     sh -c "\"$BIN\" scan \"$work/tree\" | awk -F'\t' '{print NF}' | sort -u"
 
+# A file with no tag and no audio either is not an untagged recording. It is
+# most often a download that returned an error page and was saved under an .mp3
+# name, and calling that "no tag" is true of it and useful about nothing.
+printf '<!DOCTYPE html>\n<html><body>404 Not Found</body></html>\n' > "$work/failed.mp3"
+printf '\377\373\220\144' > "$work/untagged.mp3"
+dd if=/dev/zero bs=1 count=400 >> "$work/untagged.mp3" 2>/dev/null
+
+assert_stdout_contains 'notaudio' 'an error page saved as .mp3 is not audio' \
+    sh -c "\"$BIN\" scan \"$work/failed.mp3\" | cut -f2"
+assert_stdout_contains 'none' 'a real MP3 with no tag is untagged, not unrecognised' \
+    sh -c "\"$BIN\" scan \"$work/untagged.mp3\" | cut -f2"
+
+# A trailing slash on the argument must not double up in the output. The path
+# opens either way, but "samples//track.mp3" and "samples/track.mp3" are
+# different strings, so one run could not be diffed against another that was
+# typed slightly differently.
+assert_stdout_empty 'a trailing slash does not double in the output' \
+    sh -c "\"$BIN\" scan \"$work/tree/\" | cut -f1 | grep '//'"
+assert_stdout_contains 'same' 'trailing slash gives the same output as none' \
+    sh -c "a=\$(\"$BIN\" scan \"$work/tree\"); b=\$(\"$BIN\" scan \"$work/tree/\");
+           [ \"\$a\" = \"\$b\" ] && echo same || echo differs"
+
 # --summary counts instead of listing. The tree holds five empty .mp3 files, so
 # every one of them is a file with no tag.
 assert_status 0 '--summary exits 0' "$BIN" scan --summary "$work/tree"
